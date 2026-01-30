@@ -1,0 +1,104 @@
+export interface DateRangeDto {
+  startDate: string;
+  endDate: string;
+}
+
+export interface GrowthPeriodDto {
+  currentStart: string;
+  currentEnd: string;
+  previousStart: string;
+  previousEnd: string;
+}
+
+export interface SalesBreakdownPoint {
+  date: string;
+  totalSales: number;
+  adSpend: number;
+  adAttributedSales: number;
+  organicSales: number;
+}
+
+export interface TacosPoint {
+  date: string;
+  tacos: number;
+  totalSales: number;
+  adSpend: number;
+}
+
+export interface SessionsRevenuePoint {
+  date: string;
+  sessions: number;
+  pageViews: number;
+  revenue: number;
+  conversionRate: number;
+}
+
+export interface KeywordBubblePoint {
+  keywordText: string;
+  spend: number;
+  orders: number;
+  impressions: number;
+  clicks: number;
+  isBranded: boolean;
+  acos: number;
+  ctr: number;
+}
+
+export interface BrandedSpendPoint {
+  date: string;
+  brandedSpend: number;
+  nonBrandedSpend: number;
+  brandedSales: number;
+  nonBrandedSales: number;
+}
+
+export interface BsrSpendPoint {
+  asin: string;
+  sku: string;
+  categoryRank: number;
+  categoryName: string;
+  adSpend: number;
+  adSales: number;
+  productName?: string;
+}
+
+export interface SkuTacosData {
+  sku: string;
+  asin: string;
+  productName?: string;
+  totalSales: number;
+  adSpend: number;
+  tacos: number;
+  dataPoints: {
+    date: string;
+    tacos: number;
+  }[];
+}
+
+export interface GrowthDecomposition {
+  baselineRevenue: number;
+  trafficContribution: number;
+  conversionContribution: number;
+  adContribution: number;
+  organicContribution: number;
+  finalRevenue: number;
+  percentChange: number;
+}
+
+export interface WastedSpendPoint {
+  date: string;
+  totalWastedSpend: number;
+  keywordCount: number;
+  topWastedKeywords: {
+    keywordText: string;
+    spend: number;
+    clicks: number;
+  }[];
+}
+
+export interface WastedKeyword {
+  keywordText: string;
+  totalSpend: number;
+  totalClicks: number;
+  dates: string[];
+}
