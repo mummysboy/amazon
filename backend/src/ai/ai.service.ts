@@ -27,6 +27,9 @@ export class AiService {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (apiKey) {
       this.openai = new OpenAI({ apiKey });
+      this.logger.log('OpenAI client initialized successfully');
+    } else {
+      this.logger.warn('OPENAI_API_KEY not found in environment variables');
     }
   }
 
@@ -35,8 +38,11 @@ export class AiService {
     periodA: DateRange,
     periodB: DateRange,
   ): Promise<AiAnalysisResponse> {
+    this.logger.log(`Analyzing performance for client ${clientId}`);
+
     if (!this.openai) {
-      throw new Error('OpenAI API key not configured');
+      this.logger.error('OpenAI client not initialized - API key missing');
+      throw new Error('OpenAI API key not configured. Please add OPENAI_API_KEY to environment variables.');
     }
 
     // Gather metrics for both periods in parallel
