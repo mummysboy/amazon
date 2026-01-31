@@ -15,13 +15,15 @@ import { ChartCard } from './ChartCard'
 interface WastedSpendChartProps {
   data: WastedSpendData | undefined
   isLoading: boolean
+  comparisonData?: WastedSpendData | undefined
+  compareMode?: boolean
 }
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export function WastedSpendChart({ data, isLoading }: WastedSpendChartProps) {
+export function WastedSpendChart({ data, isLoading, comparisonData, compareMode }: WastedSpendChartProps) {
   if (!data) {
     return (
       <ChartCard
@@ -35,14 +37,25 @@ export function WastedSpendChart({ data, isLoading }: WastedSpendChartProps) {
     )
   }
 
-  const chartData = data.daily.map((d) => ({
-    date: formatDate(d.date),
-    'Wasted Spend': d.totalWastedSpend,
-    'Keywords': d.keywordCount,
-  }))
+  const chartData = compareMode && comparisonData
+    ? data.daily.map((d, index) => ({
+        dayLabel: `Day ${index + 1}`,
+        'Wasted Spend (A)': d.totalWastedSpend,
+        'Keywords (A)': d.keywordCount,
+        'Wasted Spend (B)': comparisonData.daily[index]?.totalWastedSpend ?? null,
+        'Keywords (B)': comparisonData.daily[index]?.keywordCount ?? null,
+      }))
+    : data.daily.map((d) => ({
+        date: formatDate(d.date),
+        'Wasted Spend': d.totalWastedSpend,
+        'Keywords': d.keywordCount,
+      }))
 
-  const totalWasted = data.daily.reduce((sum, d) => sum + d.totalWastedSpend, 0)
-  const totalKeywords = data.keywords.length
+  const totalWastedA = data.daily.reduce((sum, d) => sum + d.totalWastedSpend, 0)
+  const totalKeywordsA = data.keywords.length
+
+  const totalWastedB = comparisonData?.daily.reduce((sum, d) => sum + d.totalWastedSpend, 0) || 0
+  const totalKeywordsB = comparisonData?.keywords.length || 0
 
   return (
     <ChartCard
@@ -51,20 +64,53 @@ export function WastedSpendChart({ data, isLoading }: WastedSpendChartProps) {
       isEmpty={data.daily.length === 0}
       emptyMessage="No wasted spend found. Either no keywords meet the criteria or all keywords are converting."
     >
-      <div className="mb-4 flex gap-6">
-        <div>
-          <span className="text-sm text-gray-500">Total Wasted: </span>
-          <span className="font-semibold text-red-600">${totalWasted.toLocaleString()}</span>
-        </div>
-        <div>
-          <span className="text-sm text-gray-500">Keywords: </span>
-          <span className="font-semibold text-gray-900">{totalKeywords}</span>
-        </div>
+      <div className="mb-4 flex gap-6 flex-wrap">
+        {compareMode && comparisonData ? (
+          <>
+            <div className="border-r pr-6">
+              <div className="text-xs text-gray-500 mb-1">Period A</div>
+              <div className="flex gap-4">
+                <div>
+                  <span className="text-sm text-gray-500">Total Wasted: </span>
+                  <span className="font-semibold text-red-600">${totalWastedA.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-500">Keywords: </span>
+                  <span className="font-semibold text-gray-900">{totalKeywordsA}</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Period B</div>
+              <div className="flex gap-4">
+                <div>
+                  <span className="text-sm text-gray-500">Total Wasted: </span>
+                  <span className="font-semibold text-red-400">${totalWastedB.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-500">Keywords: </span>
+                  <span className="font-semibold text-gray-600">{totalKeywordsB}</span>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <span className="text-sm text-gray-500">Total Wasted: </span>
+              <span className="font-semibold text-red-600">${totalWastedA.toLocaleString()}</span>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500">Keywords: </span>
+              <span className="font-semibold text-gray-900">{totalKeywordsA}</span>
+            </div>
+          </>
+        )}
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <ComposedChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+          <XAxis dataKey={compareMode ? 'dayLabel' : 'date'} tick={{ fontSize: 12 }} />
           <YAxis
             yAxisId="left"
             tick={{ fontSize: 12 }}
@@ -76,29 +122,73 @@ export function WastedSpendChart({ data, isLoading }: WastedSpendChartProps) {
             tick={{ fontSize: 12 }}
           />
           <Tooltip
-            formatter={(value, name) =>
-              name === 'Wasted Spend' ? `$${Number(value).toLocaleString()}` : Number(value)
-            }
+            formatter={(value, name) => {
+              if (value === null) return '-'
+              const strName = String(name)
+              return strName.includes('Wasted') ? `$${Number(value).toLocaleString()}` : Number(value)
+            }}
           />
           <Legend />
-          <Bar
-            yAxisId="left"
-            dataKey="Wasted Spend"
-            fill="#EF4444"
-            opacity={0.8}
-          />
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="Keywords"
-            stroke="#6366F1"
-            strokeWidth={2}
-            dot={false}
-          />
+          {compareMode && comparisonData ? (
+            <>
+              {/* Period A - Solid */}
+              <Bar
+                yAxisId="left"
+                dataKey="Wasted Spend (A)"
+                fill="#EF4444"
+                opacity={0.8}
+                name="Wasted (A)"
+              />
+              <Bar
+                yAxisId="left"
+                dataKey="Wasted Spend (B)"
+                fill="#EF4444"
+                opacity={0.4}
+                name="Wasted (B)"
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="Keywords (A)"
+                stroke="#6366F1"
+                strokeWidth={2}
+                dot={false}
+                name="Keywords (A)"
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="Keywords (B)"
+                stroke="#6366F1"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                strokeOpacity={0.6}
+                dot={false}
+                name="Keywords (B)"
+              />
+            </>
+          ) : (
+            <>
+              <Bar
+                yAxisId="left"
+                dataKey="Wasted Spend"
+                fill="#EF4444"
+                opacity={0.8}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="Keywords"
+                stroke="#6366F1"
+                strokeWidth={2}
+                dot={false}
+              />
+            </>
+          )}
         </ComposedChart>
       </ResponsiveContainer>
 
-      {data.keywords.length > 0 && (
+      {data.keywords.length > 0 && !compareMode && (
         <div className="mt-4">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Top Wasted Keywords</h4>
           <div className="max-h-32 overflow-y-auto">

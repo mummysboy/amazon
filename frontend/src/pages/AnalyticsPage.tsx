@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { DateRange } from '../types/analytics'
+import type { DateRange, ComparisonConfig } from '../types/analytics'
 import {
   useSalesBreakdown,
   useTacosTrend,
@@ -17,7 +17,13 @@ import {
   useRemoveBrandKeyword,
   getDateRangeFromPreset,
   getGrowthPeriods,
+  useSalesBreakdownComparison,
+  useTacosTrendComparison,
+  useSessionsRevenueComparison,
+  useBrandedSpendComparison,
+  useWastedSpendComparison,
 } from '../hooks/useAnalytics'
+import { useAiAnalysis } from '../hooks/useAiAnalysis'
 
 import { DateRangeFilter } from '../components/analytics/DateRangeFilter'
 import { SalesBreakdownChart } from '../components/analytics/SalesBreakdownChart'
@@ -29,6 +35,7 @@ import { BsrSpendChart } from '../components/analytics/BsrSpendChart'
 import { SkuTacosGrid } from '../components/analytics/SkuTacosGrid'
 import { GrowthWaterfallChart } from '../components/analytics/GrowthWaterfallChart'
 import { WastedSpendChart } from '../components/analytics/WastedSpendChart'
+import { AiAnalysisPanel } from '../components/analytics/AiAnalysisPanel'
 
 interface Client {
   id: string
@@ -40,6 +47,8 @@ export function AnalyticsPage() {
   const [dateRange, setDateRange] = useState<DateRange>(() => getDateRangeFromPreset('30d'))
   const [newBrandKeyword, setNewBrandKeyword] = useState('')
   const [showBrandSettings, setShowBrandSettings] = useState(false)
+  const [comparisonConfig, setComparisonConfig] = useState<ComparisonConfig>({ enabled: false })
+  const [showAiPanel, setShowAiPanel] = useState(false)
 
   // Get growth period from date range
   const growthPeriod = useMemo(() => getGrowthPeriods(dateRange), [dateRange])
@@ -53,7 +62,7 @@ export function AnalyticsPage() {
     },
   })
 
-  // Analytics queries
+  // Analytics queries (non-comparison mode)
   const salesBreakdown = useSalesBreakdown(selectedClient, dateRange)
   const tacosTrend = useTacosTrend(selectedClient, dateRange)
   const sessionsRevenue = useSessionsRevenue(selectedClient, dateRange)
@@ -63,6 +72,16 @@ export function AnalyticsPage() {
   const topSkuTacos = useTopSkuTacos(selectedClient, dateRange)
   const growthDecomposition = useGrowthDecomposition(selectedClient, growthPeriod)
   const wastedSpend = useWastedSpend(selectedClient, dateRange)
+
+  // Comparison queries
+  const salesBreakdownComparison = useSalesBreakdownComparison(selectedClient, dateRange, comparisonConfig)
+  const tacosTrendComparison = useTacosTrendComparison(selectedClient, dateRange, comparisonConfig)
+  const sessionsRevenueComparison = useSessionsRevenueComparison(selectedClient, dateRange, comparisonConfig)
+  const brandedSpendComparison = useBrandedSpendComparison(selectedClient, dateRange, comparisonConfig)
+  const wastedSpendComparison = useWastedSpendComparison(selectedClient, dateRange, comparisonConfig)
+
+  // AI Analysis mutation
+  const aiAnalysis = useAiAnalysis(selectedClient)
 
   // Brand keywords management
   const brandKeywords = useBrandKeywords(selectedClient)
@@ -75,6 +94,34 @@ export function AnalyticsPage() {
       setNewBrandKeyword('')
     }
   }
+
+  const handleGetAiInsights = () => {
+    // Calculate previous period if comparison not enabled
+    const periodB = comparisonConfig.enabled && comparisonConfig.periodB
+      ? comparisonConfig.periodB
+      : (() => {
+          const startDate = new Date(dateRange.startDate)
+          const endDate = new Date(dateRange.endDate)
+          const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+          const prevEnd = new Date(startDate)
+          prevEnd.setDate(prevEnd.getDate() - 1)
+          const prevStart = new Date(prevEnd)
+          prevStart.setDate(prevStart.getDate() - daysDiff)
+          return {
+            startDate: prevStart.toISOString().split('T')[0],
+            endDate: prevEnd.toISOString().split('T')[0],
+          }
+        })()
+
+    setShowAiPanel(true)
+    aiAnalysis.mutate({
+      periodA: dateRange,
+      periodB,
+    })
+  }
+
+  // Determine which data to use based on compare mode
+  const compareMode = comparisonConfig.enabled
 
   return (
     <div>
@@ -100,12 +147,36 @@ export function AnalyticsPage() {
             ))}
           </select>
           {selectedClient && (
-            <button
-              onClick={() => setShowBrandSettings(!showBrandSettings)}
-              className="px-3 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
-            >
-              Brand Keywords
-            </button>
+            <>
+              <button
+                onClick={() => setShowBrandSettings(!showBrandSettings)}
+                className="px-3 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+              >
+                Brand Keywords
+              </button>
+              <button
+                onClick={handleGetAiInsights}
+                disabled={aiAnalysis.isPending}
+                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-md shadow-sm disabled:opacity-50 flex items-center gap-2"
+              >
+                {aiAnalysis.isPending ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    Get AI Insights
+                  </>
+                )}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -113,7 +184,12 @@ export function AnalyticsPage() {
       {/* Date Filter */}
       {selectedClient && (
         <div className="mt-4">
-          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+          <DateRangeFilter
+            value={dateRange}
+            onChange={setDateRange}
+            comparisonConfig={comparisonConfig}
+            onComparisonChange={setComparisonConfig}
+          />
         </div>
       )}
 
@@ -180,20 +256,26 @@ export function AnalyticsPage() {
           {/* Charts Row 1 */}
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <SalesBreakdownChart
-              data={salesBreakdown.data || []}
-              isLoading={salesBreakdown.isLoading}
+              data={compareMode ? salesBreakdownComparison.periodA : (salesBreakdown.data || [])}
+              isLoading={compareMode ? salesBreakdownComparison.isLoading : salesBreakdown.isLoading}
+              comparisonData={compareMode ? salesBreakdownComparison.periodB : undefined}
+              compareMode={compareMode}
             />
             <TacosChart
-              data={tacosTrend.data || []}
-              isLoading={tacosTrend.isLoading}
+              data={compareMode ? tacosTrendComparison.periodA : (tacosTrend.data || [])}
+              isLoading={compareMode ? tacosTrendComparison.isLoading : tacosTrend.isLoading}
+              comparisonData={compareMode ? tacosTrendComparison.periodB : undefined}
+              compareMode={compareMode}
             />
           </div>
 
           {/* Charts Row 2 */}
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <SessionsRevenueChart
-              data={sessionsRevenue.data || []}
-              isLoading={sessionsRevenue.isLoading}
+              data={compareMode ? sessionsRevenueComparison.periodA : (sessionsRevenue.data || [])}
+              isLoading={compareMode ? sessionsRevenueComparison.isLoading : sessionsRevenue.isLoading}
+              comparisonData={compareMode ? sessionsRevenueComparison.periodB : undefined}
+              compareMode={compareMode}
             />
             <KeywordBubbleChart
               data={keywordPerformance.data || []}
@@ -204,8 +286,10 @@ export function AnalyticsPage() {
           {/* Charts Row 3 */}
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <BrandedSpendChart
-              data={brandedSpend.data || []}
-              isLoading={brandedSpend.isLoading}
+              data={compareMode ? brandedSpendComparison.periodA : (brandedSpend.data || [])}
+              isLoading={compareMode ? brandedSpendComparison.isLoading : brandedSpend.isLoading}
+              comparisonData={compareMode ? brandedSpendComparison.periodB : undefined}
+              compareMode={compareMode}
             />
             <BsrSpendChart
               data={bsrVsSpend.data || []}
@@ -228,12 +312,23 @@ export function AnalyticsPage() {
               isLoading={growthDecomposition.isLoading}
             />
             <WastedSpendChart
-              data={wastedSpend.data}
-              isLoading={wastedSpend.isLoading}
+              data={compareMode ? wastedSpendComparison.periodA : wastedSpend.data}
+              isLoading={compareMode ? wastedSpendComparison.isLoading : wastedSpend.isLoading}
+              comparisonData={compareMode ? wastedSpendComparison.periodB : undefined}
+              compareMode={compareMode}
             />
           </div>
         </>
       )}
+
+      {/* AI Analysis Panel */}
+      <AiAnalysisPanel
+        isOpen={showAiPanel}
+        onClose={() => setShowAiPanel(false)}
+        data={aiAnalysis.data || null}
+        isLoading={aiAnalysis.isPending}
+        error={aiAnalysis.error}
+      />
     </div>
   )
 }

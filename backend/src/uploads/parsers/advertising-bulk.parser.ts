@@ -13,6 +13,8 @@ export interface AdvertisingBulkRow {
   keyword_text: string;
   match_type: string;
   targeting_type: string;
+  sku: string;
+  asin: string;
   impressions: number;
   clicks: number;
   spend: number;
@@ -194,6 +196,8 @@ export class AdvertisingBulkParser extends BaseParser<AdvertisingBulkRow> {
         keyword_text: keywordText,
         match_type: matchType,
         targeting_type: String(row['Targeting Type'] || row['Tactic'] || ''),
+        sku: String(row['SKU'] || ''),
+        asin: String(row['ASIN (Informational only)'] || row['ASIN'] || ''),
         impressions: impressions,
         clicks: this.parseNumber(row['Clicks']),
         spend: this.parseNumber(row['Spend']),
@@ -239,6 +243,8 @@ export class AdvertisingBulkParser extends BaseParser<AdvertisingBulkRow> {
         keyword_text: searchTerm || String(row['Keyword Text'] || row['Product Targeting Expression'] || ''),
         match_type: String(row['Match Type'] || ''),
         targeting_type: '',
+        sku: '',
+        asin: '',
         impressions: impressions,
         clicks: this.parseNumber(row['Clicks']),
         spend: this.parseNumber(row['Spend']),

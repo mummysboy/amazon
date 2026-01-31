@@ -109,3 +109,25 @@ export interface WastedSpendData {
 }
 
 export type DatePreset = '7d' | '14d' | '30d' | '90d' | 'custom'
+
+// Comparison types
+export interface ComparisonDateRange {
+  periodA: DateRange
+  periodB: DateRange
+}
+
+export interface ComparisonConfig {
+  enabled: boolean
+  periodB?: DateRange
+}
+
+// Comparison-aware data structures for charts
+export interface ComparisonDataPoint<T> {
+  periodA: T[]
+  periodB: T[]
+}
+
+export interface NormalizedComparisonPoint {
+  dayIndex: number
+  dayLabel: string
+}

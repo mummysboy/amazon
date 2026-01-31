@@ -561,6 +561,47 @@ export class UploadsService {
       inserted += result?.length || 0;
     }
 
+    // Also extract and save SKU-campaign mappings
+    const skuMappings = new Map<string, { sku: string; asin: string; campaign_id: string; campaign_name: string }>();
+    for (const row of data) {
+      if (row.sku && row.campaign_id) {
+        const key = `${row.sku}|${row.campaign_id}`;
+        if (!skuMappings.has(key)) {
+          skuMappings.set(key, {
+            sku: row.sku,
+            asin: row.asin || '',
+            campaign_id: row.campaign_id,
+            campaign_name: row.campaign_name,
+          });
+        }
+      }
+    }
+
+    if (skuMappings.size > 0) {
+      const mappingRecords = Array.from(skuMappings.values()).map((m) => ({
+        client_id: clientId,
+        sku: m.sku,
+        asin: m.asin,
+        campaign_id: m.campaign_id,
+        campaign_name: m.campaign_name,
+        data_source_type: 'manual_upload' as DataSourceType,
+        data_source_id: sessionId,
+      }));
+
+      console.log(`Saving ${mappingRecords.length} SKU-campaign mappings`);
+
+      const { error: mappingError } = await this.supabase
+        .from('sku_campaign_mapping')
+        .upsert(mappingRecords, {
+          onConflict: 'client_id,sku,campaign_id',
+        });
+
+      if (mappingError) {
+        console.error('SKU mapping save error:', mappingError);
+        // Don't throw - continue even if mapping fails
+      }
+    }
+
     return { inserted };
   }
 

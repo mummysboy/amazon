@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type {
   DateRange,
@@ -12,9 +12,17 @@ import type {
   SkuTacosData,
   GrowthDecomposition,
   WastedSpendData,
+  ComparisonConfig,
 } from '../types/analytics'
 
 const STALE_TIME = 5 * 60 * 1000 // 5 minutes
+
+// Type for comparison data results
+export interface ComparisonData<T> {
+  periodA: T[]
+  periodB: T[]
+  isLoading: boolean
+}
 
 export function useSalesBreakdown(clientId: string, dateRange: DateRange) {
   return useQuery({
@@ -29,6 +37,47 @@ export function useSalesBreakdown(clientId: string, dateRange: DateRange) {
     enabled: !!clientId && !!dateRange.startDate && !!dateRange.endDate,
     staleTime: STALE_TIME,
   })
+}
+
+export function useSalesBreakdownComparison(
+  clientId: string,
+  dateRange: DateRange,
+  comparisonConfig: ComparisonConfig
+): ComparisonData<SalesBreakdownPoint> {
+  const queries = useQueries({
+    queries: [
+      {
+        queryKey: ['analytics', 'sales-breakdown', clientId, dateRange],
+        queryFn: async () => {
+          const { data } = await api.get<SalesBreakdownPoint[]>(
+            `/api/analytics/${clientId}/sales-breakdown`,
+            { params: dateRange }
+          )
+          return data
+        },
+        enabled: !!clientId && !!dateRange.startDate && !!dateRange.endDate,
+        staleTime: STALE_TIME,
+      },
+      {
+        queryKey: ['analytics', 'sales-breakdown', clientId, comparisonConfig.periodB],
+        queryFn: async () => {
+          const { data } = await api.get<SalesBreakdownPoint[]>(
+            `/api/analytics/${clientId}/sales-breakdown`,
+            { params: comparisonConfig.periodB }
+          )
+          return data
+        },
+        enabled: !!clientId && comparisonConfig.enabled && !!comparisonConfig.periodB?.startDate && !!comparisonConfig.periodB?.endDate,
+        staleTime: STALE_TIME,
+      },
+    ],
+  })
+
+  return {
+    periodA: queries[0].data || [],
+    periodB: queries[1].data || [],
+    isLoading: queries[0].isLoading || queries[1].isLoading,
+  }
 }
 
 export function useTacosTrend(clientId: string, dateRange: DateRange) {
@@ -46,6 +95,47 @@ export function useTacosTrend(clientId: string, dateRange: DateRange) {
   })
 }
 
+export function useTacosTrendComparison(
+  clientId: string,
+  dateRange: DateRange,
+  comparisonConfig: ComparisonConfig
+): ComparisonData<TacosPoint> {
+  const queries = useQueries({
+    queries: [
+      {
+        queryKey: ['analytics', 'tacos-trend', clientId, dateRange],
+        queryFn: async () => {
+          const { data } = await api.get<TacosPoint[]>(
+            `/api/analytics/${clientId}/tacos-trend`,
+            { params: dateRange }
+          )
+          return data
+        },
+        enabled: !!clientId && !!dateRange.startDate && !!dateRange.endDate,
+        staleTime: STALE_TIME,
+      },
+      {
+        queryKey: ['analytics', 'tacos-trend', clientId, comparisonConfig.periodB],
+        queryFn: async () => {
+          const { data } = await api.get<TacosPoint[]>(
+            `/api/analytics/${clientId}/tacos-trend`,
+            { params: comparisonConfig.periodB }
+          )
+          return data
+        },
+        enabled: !!clientId && comparisonConfig.enabled && !!comparisonConfig.periodB?.startDate && !!comparisonConfig.periodB?.endDate,
+        staleTime: STALE_TIME,
+      },
+    ],
+  })
+
+  return {
+    periodA: queries[0].data || [],
+    periodB: queries[1].data || [],
+    isLoading: queries[0].isLoading || queries[1].isLoading,
+  }
+}
+
 export function useSessionsRevenue(clientId: string, dateRange: DateRange) {
   return useQuery({
     queryKey: ['analytics', 'sessions-revenue', clientId, dateRange],
@@ -59,6 +149,47 @@ export function useSessionsRevenue(clientId: string, dateRange: DateRange) {
     enabled: !!clientId && !!dateRange.startDate && !!dateRange.endDate,
     staleTime: STALE_TIME,
   })
+}
+
+export function useSessionsRevenueComparison(
+  clientId: string,
+  dateRange: DateRange,
+  comparisonConfig: ComparisonConfig
+): ComparisonData<SessionsRevenuePoint> {
+  const queries = useQueries({
+    queries: [
+      {
+        queryKey: ['analytics', 'sessions-revenue', clientId, dateRange],
+        queryFn: async () => {
+          const { data } = await api.get<SessionsRevenuePoint[]>(
+            `/api/analytics/${clientId}/sessions-revenue`,
+            { params: dateRange }
+          )
+          return data
+        },
+        enabled: !!clientId && !!dateRange.startDate && !!dateRange.endDate,
+        staleTime: STALE_TIME,
+      },
+      {
+        queryKey: ['analytics', 'sessions-revenue', clientId, comparisonConfig.periodB],
+        queryFn: async () => {
+          const { data } = await api.get<SessionsRevenuePoint[]>(
+            `/api/analytics/${clientId}/sessions-revenue`,
+            { params: comparisonConfig.periodB }
+          )
+          return data
+        },
+        enabled: !!clientId && comparisonConfig.enabled && !!comparisonConfig.periodB?.startDate && !!comparisonConfig.periodB?.endDate,
+        staleTime: STALE_TIME,
+      },
+    ],
+  })
+
+  return {
+    periodA: queries[0].data || [],
+    periodB: queries[1].data || [],
+    isLoading: queries[0].isLoading || queries[1].isLoading,
+  }
 }
 
 export function useKeywordPerformance(clientId: string, dateRange: DateRange, limit = 100) {
@@ -89,6 +220,47 @@ export function useBrandedSpend(clientId: string, dateRange: DateRange) {
     enabled: !!clientId && !!dateRange.startDate && !!dateRange.endDate,
     staleTime: STALE_TIME,
   })
+}
+
+export function useBrandedSpendComparison(
+  clientId: string,
+  dateRange: DateRange,
+  comparisonConfig: ComparisonConfig
+): ComparisonData<BrandedSpendPoint> {
+  const queries = useQueries({
+    queries: [
+      {
+        queryKey: ['analytics', 'branded-spend', clientId, dateRange],
+        queryFn: async () => {
+          const { data } = await api.get<BrandedSpendPoint[]>(
+            `/api/analytics/${clientId}/branded-spend`,
+            { params: dateRange }
+          )
+          return data
+        },
+        enabled: !!clientId && !!dateRange.startDate && !!dateRange.endDate,
+        staleTime: STALE_TIME,
+      },
+      {
+        queryKey: ['analytics', 'branded-spend', clientId, comparisonConfig.periodB],
+        queryFn: async () => {
+          const { data } = await api.get<BrandedSpendPoint[]>(
+            `/api/analytics/${clientId}/branded-spend`,
+            { params: comparisonConfig.periodB }
+          )
+          return data
+        },
+        enabled: !!clientId && comparisonConfig.enabled && !!comparisonConfig.periodB?.startDate && !!comparisonConfig.periodB?.endDate,
+        staleTime: STALE_TIME,
+      },
+    ],
+  })
+
+  return {
+    periodA: queries[0].data || [],
+    periodB: queries[1].data || [],
+    isLoading: queries[0].isLoading || queries[1].isLoading,
+  }
 }
 
 export function useBsrVsSpend(clientId: string, dateRange: DateRange) {
@@ -149,6 +321,54 @@ export function useWastedSpend(clientId: string, dateRange: DateRange, clickThre
     enabled: !!clientId && !!dateRange.startDate && !!dateRange.endDate,
     staleTime: STALE_TIME,
   })
+}
+
+export interface WastedSpendComparisonData {
+  periodA: WastedSpendData | undefined
+  periodB: WastedSpendData | undefined
+  isLoading: boolean
+}
+
+export function useWastedSpendComparison(
+  clientId: string,
+  dateRange: DateRange,
+  comparisonConfig: ComparisonConfig,
+  clickThreshold = 1
+): WastedSpendComparisonData {
+  const queries = useQueries({
+    queries: [
+      {
+        queryKey: ['analytics', 'wasted-spend', clientId, dateRange, clickThreshold],
+        queryFn: async () => {
+          const { data } = await api.get<WastedSpendData>(
+            `/api/analytics/${clientId}/wasted-spend`,
+            { params: { ...dateRange, clickThreshold } }
+          )
+          return data
+        },
+        enabled: !!clientId && !!dateRange.startDate && !!dateRange.endDate,
+        staleTime: STALE_TIME,
+      },
+      {
+        queryKey: ['analytics', 'wasted-spend', clientId, comparisonConfig.periodB, clickThreshold],
+        queryFn: async () => {
+          const { data } = await api.get<WastedSpendData>(
+            `/api/analytics/${clientId}/wasted-spend`,
+            { params: { ...comparisonConfig.periodB, clickThreshold } }
+          )
+          return data
+        },
+        enabled: !!clientId && comparisonConfig.enabled && !!comparisonConfig.periodB?.startDate && !!comparisonConfig.periodB?.endDate,
+        staleTime: STALE_TIME,
+      },
+    ],
+  })
+
+  return {
+    periodA: queries[0].data,
+    periodB: queries[1].data,
+    isLoading: queries[0].isLoading || queries[1].isLoading,
+  }
 }
 
 export function useBrandKeywords(clientId: string) {
